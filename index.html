@@ -1,207 +1,132 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Slot Boongan</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dino Game</title>
   <style>
     body {
-      background: radial-gradient(#0f0f1a, #000);
-      color: #00ffcc;
-      font-family: 'Orbitron', sans-serif;
+      font-family: monospace;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
       text-align: center;
-      padding: 30px;
     }
-    h1, h2 {
-      color: #00f0ff;
-      text-shadow: 0 0 10px #00f0ff;
-    }
-    .slot-container {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin: 30px 0;
-    }
-    .slot-col {
+
+    #game {
       position: relative;
-      width: 80px;
-      height: 80px;
+      width: 600px;
+      height: 200px;
+      background: #fff;
+      border: 2px solid #333;
+      margin: 20px auto;
       overflow: hidden;
-      border: 3px solid #0088cc;
-      border-radius: 12px;
-      background: #111;
-      box-shadow: 0 0 10px #00eaff88;
     }
-    .symbol-list {
+
+    #dino {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      transition: transform 0.5s ease-out;
+      width: 40px;
+      height: 40px;
+      background: #2ecc71;
+      bottom: 0;
+      left: 50px;
+      border-radius: 5px;
     }
-    .symbol {
-      height: 80px;
-      font-size: 48px;
-      line-height: 80px;
+
+    #cactus {
+      position: absolute;
+      width: 20px;
+      height: 50px;
+      background: #e74c3c;
+      bottom: 0;
+      left: 600px;
+      border-radius: 3px;
     }
-    .btn {
-      padding: 14px 28px;
-      font-size: 18px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 10px;
-      font-family: 'Orbitron', sans-serif;
-      transition: 0.3s;
+
+    .info {
+      font-size: 14px;
+      color: #555;
     }
-    #spin { background: #00cc66; color: #000; box-shadow: 0 0 10px #00cc66aa; }
-    #screenshot { background: #ff6600; color: #fff; box-shadow: 0 0 10px #ff6600aa; }
-    .btn:hover { transform: scale(1.05); }
-    #score { margin-top: 20px; font-size: 24px; }
-    ol { text-align: left; max-width: 300px; margin: 0 auto; padding: 0; }
-    li { margin: 5px 0; }
+
+    #score {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-
-  <h1>🎰 Selamat Datang di Game Slot Boongan 🎰</h1>
-
-  <div class="slot-container">
-    <div class="slot-col" id="col1"><div class="symbol-list"></div></div>
-    <div class="slot-col" id="col2"><div class="symbol-list"></div></div>
-    <div class="slot-col" id="col3"><div class="symbol-list"></div></div>
+  <h1>🦖 Dino Game</h1>
+  <div id="game">
+    <div id="dino"></div>
+    <div id="cactus"></div>
   </div>
-
-  <button class="btn" id="spin">SPIN</button>
-  <button class="btn" id="screenshot">📸 Screenshot</button>
-  <div id="score">Skor: 0</div>
-
-  <h2>🏆 Leaderboard</h2>
-  <ol id="leaderboard"></ol>
+  <p>Score: <span id="score">0</span></p>
+  <p class="info">Tap layar / tekan [Space] buat lompat</p>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "ISIKAN_API_KEY_KAMU",
-      authDomain: "ISIKAN_AUTH_DOMAIN",
-      projectId: "ISIKAN_PROJECT_ID",
-      storageBucket: "ISIKAN_BUCKET",
-      messagingSenderId: "ISIKAN_SENDER_ID",
-      appId: "ISIKAN_APP_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const dino = document.getElementById("dino");
+    const cactus = document.getElementById("cactus");
+    const scoreDisplay = document.getElementById("score");
 
-    const symbols = [
-      { symbol: "🍒", chance: 30, points: 10 },
-      { symbol: "🔔", chance: 20, points: 50 },
-      { symbol: "💣", chance: 20, points: 0 },
-      { symbol: "💎", chance: 5,  points: 5000000 },
-      { symbol: "7️⃣", chance: 25, points: 100 }
-    ];
+    let isJumping = false;
+    let score = 0;
 
-    let totalScore = 0;
+    // LOMPAT
+    function jump() {
+      if (isJumping) return;
+      isJumping = true;
+      let up = 0;
 
-    function getRandomSymbol() {
-      const total = symbols.reduce((a, b) => a + b.chance, 0);
-      let rand = Math.random() * total;
-      for (let s of symbols) {
-        if (rand < s.chance) return s;
-        rand -= s.chance;
-      }
+      const upInterval = setInterval(() => {
+        if (up >= 100) {
+          clearInterval(upInterval);
+          const downInterval = setInterval(() => {
+            if (up <= 0) {
+              clearInterval(downInterval);
+              isJumping = false;
+            }
+            up -= 5;
+            dino.style.bottom = up + "px";
+          }, 20);
+        }
+        up += 5;
+        dino.style.bottom = up + "px";
+      }, 20);
     }
 
-    async function spinColumn(colId, finalSymbol) {
-      const col = document.getElementById(colId).querySelector('.symbol-list');
-      col.style.transition = "none";
-      col.style.transform = "translateY(0px)";
-      col.innerHTML = "";
-      await new Promise(r => setTimeout(r, 10));
+    // CACTUS BERGERAK
+    function moveCactus() {
+      let pos = 600;
+      cactus.style.left = pos + "px";
 
-      const spinSymbols = [];
-      for (let i = 0; i < 10; i++) {
-        const s = symbols[Math.floor(Math.random() * symbols.length)].symbol;
-        spinSymbols.push(s);
-      }
-      spinSymbols.push(finalSymbol.symbol);
+      const move = setInterval(() => {
+        if (pos < -20) {
+          pos = 600;
+          score++;
+          scoreDisplay.textContent = score;
+        } else {
+          pos -= 5;
+        }
 
-      for (let sym of spinSymbols) {
-        const el = document.createElement("div");
-        el.className = "symbol";
-        el.textContent = sym;
-        col.appendChild(el);
-      }
+        cactus.style.left = pos + "px";
 
-      await new Promise(r => setTimeout(r, 10));
-      col.style.transition = "transform 0.5s ease-out";
-      col.style.transform = `translateY(-${80 * (spinSymbols.length - 1)}px)`;
+        // DETEKSI TABRAKAN
+        const dinoBottom = parseInt(window.getComputedStyle(dino).getPropertyValue("bottom"));
+        const cactusLeft = parseInt(window.getComputedStyle(cactus).getPropertyValue("left"));
 
-      await new Promise(r => setTimeout(r, 600));
+        if (cactusLeft < 90 && cactusLeft > 50 && dinoBottom <= 50) {
+          alert("💥 Game Over!\nScore: " + score);
+          location.reload();
+        }
+      }, 20);
     }
 
-    async function spinAll() {
-      document.getElementById("spin").disabled = true;
-
-      const results = [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()];
-      await Promise.all([
-        spinColumn("col1", results[0]),
-        new Promise(r => setTimeout(() => spinColumn("col2", results[1]).then(r), 150)),
-        new Promise(r => setTimeout(() => spinColumn("col3", results[2]).then(r), 300))
-      ]);
-
-      const syms = results.map(s => s.symbol);
-      let score = 0;
-      if (syms.every(s => s === "💎")) {
-        score = 5000000;
-        alert("💎 JACKPOT 5 JUTA!");
-      } else if (syms.includes("💣")) {
-        score = 0;
-        alert("💣 ZONK!");
-      } else if (syms.filter(s => s === "🍒").length === 2) {
-        score = 250;
-        alert("🍒🍒 BONUS 250!");
-      } else {
-        score = results.reduce((sum, s) => sum + s.points, 0);
-      }
-
-      totalScore += score;
-      document.getElementById("score").textContent = `Skor: ${totalScore}`;
-
-      const username = prompt("Masukkan namamu:", "Player");
-      if (username) {
-        db.collection("leaderboard").doc(username).set({
-          name: username,
-          score: totalScore
-        });
-      }
-
-      document.getElementById("spin").disabled = false;
-    }
-
-    document.getElementById("spin").addEventListener("click", spinAll);
-    document.getElementById("screenshot").addEventListener("click", () => {
-      html2canvas(document.body).then(canvas => {
-        const link = document.createElement("a");
-        link.download = "slot-boongan.png";
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-      });
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") jump();
     });
 
-    const lb = document.getElementById("leaderboard");
-    db.collection("leaderboard").orderBy("score", "desc").limit(10)
-      .onSnapshot(snapshot => {
-        lb.innerHTML = "";
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          const li = document.createElement("li");
-          li.textContent = `${d.name}: ${d.score}`;
-          lb.appendChild(li);
-        });
-      });
-  </script>
+    document.addEventListener("touchstart", jump);
 
+    moveCactus();
+  </script>
 </body>
-  </html>
+</html>
